@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import subprocess
 from abc import ABC, abstractmethod
 from typing import Any
@@ -38,7 +39,14 @@ class BaseDomain(ABC):
     # ------------------------------------------------------------------
 
     def _run_command(self, cmd: list[str], timeout: int = 120) -> dict:
-        """Run a shell command and return stdout/stderr/returncode."""
+        """Run a shell command, forwarding to the tester service if TOOL_RUNNER_URL is set."""
+        tester_url = os.getenv("TOOL_RUNNER_URL", "").rstrip("/")
+        if tester_url:
+            return self._remote_command(tester_url, cmd, timeout)
+        return self._local_command(cmd, timeout)
+
+    def _local_command(self, cmd: list[str], timeout: int) -> dict:
+        """Execute command locally via subprocess."""
         try:
             proc = subprocess.run(
                 cmd, capture_output=True, text=True, timeout=timeout
@@ -54,6 +62,26 @@ class BaseDomain(ABC):
             return {"error": f"Tool not found: {cmd[0]}. Install it or disable in config."}
         except Exception as exc:
             return {"error": str(exc)}
+
+    def _remote_command(self, tester_url: str, cmd: list[str], timeout: int) -> dict:
+        """Forward command to the tester microservice."""
+        import httpx
+        try:
+            resp = httpx.post(
+                f"{tester_url}/exec",
+                json={"command": cmd, "timeout": timeout},
+                timeout=timeout + 10,
+            )
+            data = resp.json()
+            if data.get("error"):
+                return {"error": data["error"], "stdout": "", "stderr": ""}
+            return {
+                "stdout": data.get("stdout", ""),
+                "stderr": data.get("stderr", ""),
+                "returncode": data.get("returncode", 0),
+            }
+        except Exception as exc:
+            return {"error": f"Tester service error: {exc}"}
 
     def _tool_enabled(self, name: str) -> bool:
         return self.config.tool(name).get("enabled", False)

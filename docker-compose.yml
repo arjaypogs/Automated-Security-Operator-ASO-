@@ -1,0 +1,66 @@
+services:
+  # ──────────────────────────────────────────────────
+  # Backend — FastAPI + ASO agent + SQLite
+  # ──────────────────────────────────────────────────
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: aso-backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - TOOL_RUNNER_URL=http://tester:8001
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - aso-results:/app/results
+      - aso-db:/app
+    depends_on:
+      - tester
+    networks:
+      - aso-net
+
+  # ──────────────────────────────────────────────────
+  # Frontend — React (Vite dev in dev profile, nginx in prod)
+  # ──────────────────────────────────────────────────
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    container_name: aso-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    networks:
+      - aso-net
+
+  # ──────────────────────────────────────────────────
+  # Tester — isolated security tool execution container
+  # ──────────────────────────────────────────────────
+  tester:
+    build:
+      context: .
+      dockerfile: tester/Dockerfile
+    container_name: aso-tester
+    restart: unless-stopped
+    # Internal only — not exposed on host
+    expose:
+      - "8001"
+    networks:
+      - aso-net
+    # Allow nmap, nuclei etc. to run properly
+    cap_add:
+      - NET_RAW
+      - NET_ADMIN
+
+volumes:
+  aso-results:
+  aso-db:
+
+networks:
+  aso-net:
+    driver: bridge

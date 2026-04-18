@@ -1,0 +1,25 @@
+# Development override — hot-reload for backend, Vite dev server for frontend
+# Usage: docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+
+services:
+  backend:
+    volumes:
+      - ./aso:/app/aso
+      - ./main.py:/app/main.py
+      - ./config.yaml:/app/config.yaml
+      - ./backend/app:/app/backend/app
+    command: uvicorn backend.app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile.dev
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - VITE_API_URL=http://localhost:8000
+      - VITE_WS_URL=localhost:8000
+    command: npm run dev -- --host
