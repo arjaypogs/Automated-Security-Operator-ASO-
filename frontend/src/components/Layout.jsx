@@ -47,12 +47,16 @@ export default function Layout() {
         </nav>
 
         {/* Footer */}
-        <div className="px-5 py-4 border-t border-bg-border">
+        <div className="px-5 py-4 border-t border-bg-border space-y-2">
           <div className="flex items-center gap-2">
             <Activity className="w-3 h-3 text-accent-green animate-pulse" />
             <span className="text-xs font-mono text-slate-500">AI Agent Active</span>
           </div>
-          <p className="text-xs text-slate-600 font-mono mt-1">claude-opus-4-7</p>
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-sky-400 flex-shrink-0" />
+            <span className="text-xs font-mono text-slate-500">MCP :8002</span>
+          </div>
+          <p className="text-xs text-slate-600 font-mono">claude-opus-4-7</p>
         </div>
       </aside>
 

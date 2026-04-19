@@ -1,6 +1,28 @@
 services:
   # ──────────────────────────────────────────────────
-  # Backend — FastAPI + ASO agent + SQLite
+  # PostgreSQL — persistent findings and session store
+  # ──────────────────────────────────────────────────
+  db:
+    image: postgres:16-alpine
+    container_name: aso-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER:     aso
+      POSTGRES_PASSWORD: aso
+      POSTGRES_DB:       aso
+    volumes:
+      - aso-db:/var/lib/postgresql/data
+      - ./init/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aso"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - aso-network
+
+  # ──────────────────────────────────────────────────
+  # Backend — FastAPI REST API + WebSocket + session management
   # ──────────────────────────────────────────────────
   backend:
     build:
@@ -9,21 +31,52 @@ services:
     container_name: aso-backend
     restart: unless-stopped
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     environment:
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
-      - TOOL_RUNNER_URL=http://tester:8001
-      - PYTHONUNBUFFERED=1
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      DATABASE_URL:      postgresql+asyncpg://aso:aso@db:5432/aso
+      TOOL_RUNNER_URL:   http://tester:8001
     volumes:
       - aso-results:/app/results
-      - aso-db:/app
     depends_on:
-      - tester
+      db:
+        condition: service_healthy
+      tester:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     networks:
-      - aso-net
+      - aso-network
 
   # ──────────────────────────────────────────────────
-  # Frontend — React (Vite dev in dev profile, nginx in prod)
+  # MCP Server — Claude Code CLI connects here via MCP protocol
+  # ──────────────────────────────────────────────────
+  mcp:
+    build:
+      context: .
+      dockerfile: mcp_server/Dockerfile
+    container_name: aso-mcp
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8002:8002"
+    environment:
+      TOOL_RUNNER_URL: http://tester:8001
+      BACKEND_URL:     http://backend:8000
+      MCP_HOST:        0.0.0.0
+      MCP_PORT:        "8002"
+    depends_on:
+      backend:
+        condition: service_healthy
+      tester:
+        condition: service_started
+    networks:
+      - aso-network
+
+  # ──────────────────────────────────────────────────
+  # Frontend — React dashboard (port 31337 like AIDA)
   # ──────────────────────────────────────────────────
   frontend:
     build:
@@ -32,14 +85,20 @@ services:
     container_name: aso-frontend
     restart: unless-stopped
     ports:
-      - "3000:80"
+      - "127.0.0.1:31337:80"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     networks:
-      - aso-net
+      - aso-network
 
   # ──────────────────────────────────────────────────
-  # Tester — isolated security tool execution container
+  # Tester — isolated pentest tool execution container
   # ──────────────────────────────────────────────────
   tester:
     build:
@@ -47,20 +106,32 @@ services:
       dockerfile: tester/Dockerfile
     container_name: aso-tester
     restart: unless-stopped
-    # Internal only — not exposed on host
     expose:
       - "8001"
-    networks:
-      - aso-net
-    # Allow nmap, nuclei etc. to run properly
+    volumes:
+      - aso-workspaces:/workspaces
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     cap_add:
       - NET_RAW
       - NET_ADMIN
+    networks:
+      - pentest-network
+      - aso-network
 
 volumes:
-  aso-results:
   aso-db:
+  aso-results:
+  aso-workspaces:
 
 networks:
-  aso-net:
+  # API stack (backend ↔ frontend ↔ mcp ↔ db)
+  aso-network:
+    driver: bridge
+
+  # Pentest network (tester ↔ backend only; isolated)
+  pentest-network:
     driver: bridge
