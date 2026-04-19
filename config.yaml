@@ -1,0 +1,129 @@
+aso:
+  model: "claude-opus-4-7"
+  max_tokens: 8192
+  max_iterations: 50
+  timeout: 300
+
+output:
+  directory: "results"
+  formats: ["html", "json"]
+  verbose: false
+
+scan:
+  default_depth: "standard"
+  rate_limit: 10
+  user_agent: "ASO-Scanner/1.0 (Authorized Security Assessment)"
+  follow_redirects: true
+  verify_ssl: false
+  proxy: null
+
+tools:
+  nmap:
+    enabled: true
+    path: "nmap"
+    default_args: "-sV -sC --open"
+  nikto:
+    enabled: true
+    path: "nikto"
+  gobuster:
+    enabled: true
+    path: "gobuster"
+    wordlist: "/usr/share/wordlists/dirb/common.txt"
+  ffuf:
+    enabled: true
+    path: "ffuf"
+    wordlist: "/usr/share/wordlists/dirb/common.txt"
+  sqlmap:
+    enabled: false
+    path: "sqlmap"
+    safe_mode: true
+  nuclei:
+    enabled: true
+    path: "nuclei"
+    templates: ""
+  wfuzz:
+    enabled: true
+    path: "wfuzz"
+  amass:
+    enabled: true
+    path: "amass"
+  subfinder:
+    enabled: true
+    path: "subfinder"
+
+domains:
+  web:
+    checks:
+      - xss
+      - sqli
+      - csrf
+      - ssrf
+      - lfi
+      - rfi
+      - open_redirect
+      - idor
+      - business_logic
+      - auth_bypass
+      - session_management
+      - security_headers
+      - cors
+      - clickjacking
+      - information_disclosure
+  api:
+    checks:
+      - broken_object_level_auth
+      - broken_auth
+      - excessive_data_exposure
+      - rate_limiting
+      - function_level_auth
+      - mass_assignment
+      - security_misconfig
+      - injection
+      - improper_assets_mgmt
+      - insufficient_logging
+  web3:
+    checks:
+      - reentrancy
+      - integer_overflow
+      - access_control
+      - tx_origin
+      - unchecked_return
+      - front_running
+      - flash_loan
+      - oracle_manipulation
+      - price_manipulation
+      - logic_errors
+  llm:
+    checks:
+      - prompt_injection
+      - jailbreak
+      - data_extraction
+      - model_denial
+      - indirect_prompt_injection
+      - training_data_extraction
+      - model_inversion
+      - adversarial_inputs
+  mobile:
+    checks:
+      - improper_platform_usage
+      - insecure_data_storage
+      - insecure_communication
+      - insecure_auth
+      - insufficient_crypto
+      - insecure_authorization
+      - client_code_quality
+      - code_tampering
+      - reverse_engineering
+      - extraneous_functionality
+  infra:
+    checks:
+      - open_ports
+      - default_credentials
+      - outdated_software
+      - misconfigurations
+      - weak_encryption
+      - exposed_services
+      - firewall_rules
+      - privilege_escalation
+      - lateral_movement
+      - data_exposure

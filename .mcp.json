@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "aso": {
+      "url": "http://localhost:8002/sse",
+      "description": "ASO — Automated Security Operator pentest tools"
+    }
+  }
+}

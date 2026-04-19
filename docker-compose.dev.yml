@@ -1,0 +1,30 @@
+# Development override — hot-reload for all services
+# Usage: docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+
+services:
+  backend:
+    volumes:
+      - ./aso:/app/aso:z
+      - ./main.py:/app/main.py:z
+      - ./config.yaml:/app/config.yaml:z
+      - ./backend/app:/app/backend/app:z
+    command: uvicorn backend.app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  mcp:
+    volumes:
+      - ./mcp_server/server.py:/app/server.py:z
+    command: python server.py
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile.dev
+    ports:
+      - "127.0.0.1:31337:3000"
+    volumes:
+      - ./frontend:/app:z
+      - /app/node_modules
+    environment:
+      - VITE_API_URL=http://localhost:8000
+      - VITE_WS_URL=localhost:8000
+    command: npm run dev -- --host 0.0.0.0
