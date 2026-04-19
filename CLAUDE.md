@@ -31,6 +31,10 @@ Think like a professional pentester: enumerate → discover → exploit → docu
 | `check_cors` | Test for CORS misconfiguration |
 | `analyze_jwt` | Decode and analyze JWT tokens |
 | `list_available_tools` | List installed security tools |
+| `get_caido_requests` | Pull HTTP history from Caido proxy |
+| `get_caido_request` | Get full raw request+response by ID |
+| `replay_caido_request` | Replay a Caido history entry (with optional edits) |
+| `get_caido_sitemap` | Get paths discovered by Caido proxy |
 
 ## Severity Guide (CVSS 3.1)
 
@@ -47,9 +51,16 @@ Think like a professional pentester: enumerate → discover → exploit → docu
 - Use `save_finding()` with complete evidence and remediation steps
 - Do not cause denial of service or data destruction
 
-## Dashboard
+## Dashboard & Proxy
 
-View real-time findings and download reports at: **http://localhost:31337**
+| Service | URL |
+|---------|-----|
+| ASO Dashboard | **http://localhost:31337** |
+| Caido Proxy UI | **http://localhost:7080** |
+| REST / MCP API | http://localhost:8000 / :8002 |
+
+**Caido workflow:** route `http_request(..., via_caido=True)` to log a request in Caido history,
+then use `get_caido_requests()` / `replay_caido_request()` to inspect and modify it.
 
 ## Example Session
 

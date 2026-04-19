@@ -36,6 +36,8 @@ services:
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
       DATABASE_URL:      postgresql+asyncpg://aso:aso@db:5432/aso
       TOOL_RUNNER_URL:   http://tester:8001
+      CAIDO_URL:         http://caido:8080
+      CAIDO_API_KEY:     ${CAIDO_API_KEY:-}
     volumes:
       - aso-results:/app/results
     depends_on:
@@ -67,6 +69,8 @@ services:
       BACKEND_URL:     http://backend:8000
       MCP_HOST:        0.0.0.0
       MCP_PORT:        "8002"
+      CAIDO_URL:       http://caido:8080
+      CAIDO_API_KEY:   ${CAIDO_API_KEY:-}
     depends_on:
       backend:
         condition: service_healthy
@@ -98,6 +102,23 @@ services:
       - aso-network
 
   # ──────────────────────────────────────────────────
+  # Caido — modern web proxy (replaces Burp Suite)
+  # UI + API:  http://localhost:7080
+  # Proxy:     caido:8080  (within Docker network)
+  # ──────────────────────────────────────────────────
+  caido:
+    image: caido/caido:latest
+    container_name: aso-caido
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:7080:8080"   # UI & GraphQL API
+    volumes:
+      - caido-data:/home/caido/.local/share/caido
+    networks:
+      - aso-network
+      - pentest-network
+
+  # ──────────────────────────────────────────────────
   # Tester — isolated pentest tool execution container
   # ──────────────────────────────────────────────────
   tester:
@@ -126,6 +147,7 @@ volumes:
   aso-db:
   aso-results:
   aso-workspaces:
+  caido-data:
 
 networks:
   # API stack (backend ↔ frontend ↔ mcp ↔ db)

@@ -179,7 +179,7 @@ aso:
 scan:
   rate_limit: 10             # Requests per second
   verify_ssl: false          # TLS verification
-  proxy: "http://127.0.0.1:8080"  # Burp/mitmproxy proxy
+  proxy: "http://127.0.0.1:7080"  # Caido proxy (auto-started by Docker Compose)
 
 tools:
   nmap:
@@ -205,7 +205,7 @@ ASO is intended **exclusively for authorized security testing**:
 
 ## Roadmap
 
-- [ ] Burp Suite integration (import/export)
+- [x] Caido proxy integration (traffic interception, history, replay, sitemap)
 - [ ] Continuous scanning mode with delta reports
 - [ ] Team collaboration (shared findings database)
 - [ ] Custom methodology templates (YAML-defined)

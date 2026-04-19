@@ -29,6 +29,8 @@ TESTER_URL   = os.getenv("TOOL_RUNNER_URL", "http://tester:8001")
 BACKEND_URL  = os.getenv("BACKEND_URL",     "http://backend:8000")
 MCP_HOST     = os.getenv("MCP_HOST",        "0.0.0.0")
 MCP_PORT     = int(os.getenv("MCP_PORT",    "8002"))
+CAIDO_URL    = os.getenv("CAIDO_URL",       "http://caido:8080")
+CAIDO_API_KEY = os.getenv("CAIDO_API_KEY",  "")
 
 mcp = FastMCP(
     name="ASO — Automated Security Operator",
@@ -77,6 +79,7 @@ async def http_request(
     headers: dict | None = None,
     body: str | None = None,
     follow_redirects: bool = True,
+    via_caido: bool = False,
 ) -> dict:
     """
     Make an HTTP request to a target URL for security testing.
@@ -87,17 +90,20 @@ async def http_request(
         headers:          Request headers as key-value pairs
         body:             Request body string
         follow_redirects: Whether to follow HTTP redirects
+        via_caido:        Route through Caido proxy so the request appears in Caido history
 
     Returns:
         dict with status_code, headers, body (truncated to 8000 chars), url
     """
     hdrs = headers or {}
     hdrs.setdefault("User-Agent", "ASO-Scanner/1.0 (Authorized Security Assessment)")
+    proxy_url = CAIDO_URL if via_caido else None
     try:
         async with httpx.AsyncClient(
             verify=False,
             follow_redirects=follow_redirects,
             timeout=30,
+            proxy=proxy_url,
         ) as client:
             resp = await client.request(
                 method.upper(), url, headers=hdrs,
@@ -108,6 +114,7 @@ async def http_request(
             "headers": dict(resp.headers),
             "body": resp.text[:8000],
             "url": str(resp.url),
+            "proxied_via_caido": via_caido,
         }
     except Exception as exc:
         return {"error": str(exc)}
@@ -400,6 +407,197 @@ async def analyze_jwt(token: str, test_url: str | None = None) -> dict:
         }
 
     return result
+
+
+def _caido_headers() -> dict:
+    hdrs = {"Content-Type": "application/json"}
+    if CAIDO_API_KEY:
+        hdrs["X-Caido-Api-Key"] = CAIDO_API_KEY
+    return hdrs
+
+
+@mcp.tool()
+async def get_caido_requests(
+    filter_host: str | None = None,
+    limit: int = 50,
+) -> dict:
+    """
+    Fetch HTTP requests captured by the Caido proxy from its history.
+
+    Args:
+        filter_host: Optional hostname filter (e.g. "example.com")
+        limit:       Max number of requests to return (default 50)
+
+    Returns:
+        dict with a list of request/response summaries from Caido history
+    """
+    query = """
+    query GetRequests($first: Int) {
+      requests(first: $first) {
+        edges {
+          node {
+            id
+            request {
+              host
+              port
+              path
+              query
+              method
+              httpVersion
+            }
+            response {
+              statusCode
+              roundtripTime
+              length
+            }
+          }
+        }
+      }
+    }
+    """
+    variables: dict = {"first": limit}
+    try:
+        async with httpx.AsyncClient(timeout=15) as client:
+            resp = await client.post(
+                f"{CAIDO_URL}/graphql",
+                headers=_caido_headers(),
+                json={"query": query, "variables": variables},
+            )
+            data = resp.json()
+        edges = data.get("data", {}).get("requests", {}).get("edges", [])
+        rows = [e["node"] for e in edges if e.get("node")]
+        if filter_host:
+            rows = [
+                r for r in rows
+                if filter_host.lower() in (r.get("request", {}).get("host", "") or "").lower()
+            ]
+        return {"count": len(rows), "requests": rows}
+    except Exception as exc:
+        return {"error": str(exc), "requests": []}
+
+
+@mcp.tool()
+async def get_caido_request(request_id: str) -> dict:
+    """
+    Retrieve the full raw request and response for a specific Caido history entry.
+
+    Args:
+        request_id: ID from get_caido_requests
+
+    Returns:
+        dict with raw request bytes (base64) and raw response bytes (base64)
+    """
+    query = """
+    query GetRequest($id: ID!) {
+      request(id: $id) {
+        id
+        request {
+          host port path query method httpVersion
+          headers { name value }
+          body { text }
+        }
+        response {
+          statusCode httpVersion
+          headers { name value }
+          body { text }
+          roundtripTime length
+        }
+      }
+    }
+    """
+    try:
+        async with httpx.AsyncClient(timeout=15) as client:
+            resp = await client.post(
+                f"{CAIDO_URL}/graphql",
+                headers=_caido_headers(),
+                json={"query": query, "variables": {"id": request_id}},
+            )
+            return resp.json().get("data", {}).get("request", {})
+    except Exception as exc:
+        return {"error": str(exc)}
+
+
+@mcp.tool()
+async def replay_caido_request(
+    request_id: str,
+    edits: dict | None = None,
+) -> dict:
+    """
+    Replay a Caido history request, optionally with modifications.
+    Uses the Caido Replay API to send the request and capture the response.
+
+    Args:
+        request_id: ID of the request to replay (from get_caido_requests)
+        edits:      Optional dict of fields to override before replaying,
+                    e.g. {"path": "/admin", "body": {"text": "id=1 OR 1=1"}}
+
+    Returns:
+        dict with the replay response or an error
+    """
+    mutation = """
+    mutation ReplayRequest($id: ID!, $input: ReplayRequestInput) {
+      replayRequest(id: $id, input: $input) {
+        response {
+          statusCode
+          headers { name value }
+          body { text }
+          roundtripTime
+          length
+        }
+      }
+    }
+    """
+    try:
+        async with httpx.AsyncClient(timeout=30) as client:
+            resp = await client.post(
+                f"{CAIDO_URL}/graphql",
+                headers=_caido_headers(),
+                json={
+                    "query": mutation,
+                    "variables": {"id": request_id, "input": edits or {}},
+                },
+            )
+            return resp.json().get("data", {}).get("replayRequest", {})
+    except Exception as exc:
+        return {"error": str(exc)}
+
+
+@mcp.tool()
+async def get_caido_sitemap(host: str | None = None) -> dict:
+    """
+    Retrieve the site map discovered by Caido (all paths seen by the proxy).
+
+    Args:
+        host: Optional hostname to filter (e.g. "api.example.com")
+
+    Returns:
+        dict with discovered paths grouped by host
+    """
+    query = """
+    query GetSitemap {
+      sitemap {
+        children {
+          host
+          paths
+        }
+      }
+    }
+    """
+    try:
+        async with httpx.AsyncClient(timeout=15) as client:
+            resp = await client.post(
+                f"{CAIDO_URL}/graphql",
+                headers=_caido_headers(),
+                json={"query": query},
+            )
+            children = (
+                resp.json().get("data", {}).get("sitemap", {}).get("children", [])
+            )
+        if host:
+            children = [c for c in children if host.lower() in c.get("host", "").lower()]
+        return {"sitemap": children}
+    except Exception as exc:
+        return {"error": str(exc)}
 
 
 if __name__ == "__main__":

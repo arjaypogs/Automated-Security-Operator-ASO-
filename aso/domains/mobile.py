@@ -15,7 +15,7 @@ _SYSTEM = """You are ASO, an expert mobile application penetration tester follow
    - Hardcoded secrets, API keys, credentials in source
    - Insecure permissions and exported components
 3. **Dynamic Analysis**:
-   - Intercept network traffic (Burp + certificate pinning bypass)
+   - Intercept network traffic (Caido proxy + certificate pinning bypass)
    - Hook runtime with Frida/objection
    - File system monitoring during runtime
 4. **MASVS Testing**:

@@ -14,7 +14,7 @@ _SYSTEM = """You are ASO, an expert thick client / desktop application penetrati
    - Identify hardcoded credentials, API keys, URLs
    - Decompile/disassemble binaries (Ghidra, IDA, dnSpy, jadx)
 3. **Network Traffic Analysis**:
-   - Intercept traffic with Burp/mitmproxy
+   - Intercept traffic with Caido proxy
    - Check for unencrypted traffic, certificate pinning
    - Test custom protocols
 4. **Local Storage Analysis**:
@@ -222,10 +222,11 @@ class ThickClientDomain(BaseDomain):
             "app_name": inputs["app_name"],
             "instructions": {
                 "http_https": [
-                    "Configure Burp Suite as system proxy (127.0.0.1:8080)",
-                    "Import Burp CA certificate to system trust store",
-                    "Launch application and observe traffic in Burp Proxy",
+                    "Configure Caido as system proxy (127.0.0.1:7080)",
+                    "Install Caido CA certificate: open http://127.0.0.1:7080 → Settings → CA Certificate",
+                    "Launch application and observe traffic in Caido Intercept / HTTP History",
                     "Look for unencrypted credentials, session tokens, API keys",
+                    "Use get_caido_requests() to pull captured traffic into ASO for automated analysis",
                 ],
                 "certificate_pinning_bypass": [
                     "Use Frida to hook SSL certificate validation",
