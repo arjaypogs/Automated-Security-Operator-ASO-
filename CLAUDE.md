@@ -62,6 +62,37 @@ Think like a professional pentester: enumerate → discover → exploit → docu
 **Caido workflow:** route `http_request(..., via_caido=True)` to log a request in Caido history,
 then use `get_caido_requests()` / `replay_caido_request()` to inspect and modify it.
 
+## save_finding — required fields for bug bounty format
+
+```python
+save_finding(
+    title              = "Reflected XSS in search parameter",
+    severity           = "high",                      # critical|high|medium|low|info
+    description        = "Technical explanation of the vuln...",
+    steps_to_reproduce = [                            # numbered PoC steps
+        "Navigate to https://example.com/search",
+        "Enter payload: <script>alert(document.cookie)</script>",
+        "Observe JavaScript execution in the browser",
+    ],
+    evidence           = "GET /search?q=<script>alert(1)</script> HTTP/1.1\n...",  # raw req/resp
+    impact             = "Attacker can steal session cookies and hijack accounts",
+    remediation        = "HTML-encode all user input before rendering; add CSP header",
+    cwe                = "CWE-79",
+    cvss_score         = 7.4,
+    references         = ["https://owasp.org/www-community/attacks/xss/"],
+    session_id         = session_id,
+)
+```
+
+## Report Formats
+
+| Format | URL | Description |
+|--------|-----|-------------|
+| HTML   | `/api/reports/{id}/html`    | Interactive dark-mode report |
+| JSON   | `/api/reports/{id}/json`    | Machine-readable full data  |
+| MD     | `/api/reports/{id}/md`      | Markdown overview           |
+| **BB** | `/api/reports/{id}/bb`      | **Bug bounty pack** — per-finding HackerOne / Bugcrowd / Intigriti templates |
+
 ## Example Session
 
 ```
@@ -76,6 +107,8 @@ Claude:
 5. check_cors("https://example.com")
 6. http_request("https://example.com/search?q=<script>alert(1)</script>")
    → reflected XSS found!
-7. save_finding(title="Reflected XSS in search", severity="high", ...)
+7. save_finding(title="Reflected XSS in search", severity="high",
+               steps_to_reproduce=[...], impact="...", evidence="...", ...)
 8. finish_session(session_id="abc-123", summary="...", recommendations=[...])
+   → returns HTML + JSON + MD + BB report links
 ```

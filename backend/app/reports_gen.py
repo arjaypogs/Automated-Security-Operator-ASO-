@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime
 from pathlib import Path
 
 from .models import Finding, Scan
@@ -25,29 +24,31 @@ async def generate_reports_for_scan(
 
     findings_data = [
         {
-            "title":       f.title,
-            "severity":    f.severity,
-            "cwe":         f.cwe,
-            "cvss_score":  f.cvss_score,
-            "description": f.description,
-            "evidence":    f.evidence,
-            "remediation": f.remediation,
-            "references":  f.references_list,
+            "title":               f.title,
+            "severity":            f.severity,
+            "cwe":                 f.cwe,
+            "cvss_score":          f.cvss_score,
+            "description":         f.description,
+            "steps_to_reproduce":  f.steps_list,
+            "evidence":            f.evidence,
+            "impact":              f.impact,
+            "remediation":         f.remediation,
+            "references":          f.references_list,
         }
         for f in findings
     ]
 
     result = {
         "meta": {
-            "target":         scan.target,
-            "domain":         scan.domain,
-            "domain_label":   scan.domain.upper(),
-            "scope":          json.loads(scan.scope or "[]"),
-            "depth":          scan.depth,
-            "started_at":     scan.started_at.isoformat() + "Z" if scan.started_at else "",
-            "finished_at":    scan.finished_at.isoformat() + "Z" if scan.finished_at else "",
+            "target":          scan.target,
+            "domain":          scan.domain,
+            "domain_label":    scan.domain.upper(),
+            "scope":           json.loads(scan.scope or "[]"),
+            "depth":           scan.depth,
+            "started_at":      scan.started_at.isoformat() + "Z" if scan.started_at else "",
+            "finished_at":     scan.finished_at.isoformat() + "Z" if scan.finished_at else "",
             "elapsed_seconds": scan.elapsed_seconds or 0,
-            "aso_version":    "1.0.0",
+            "aso_version":     "1.0.0",
         },
         "findings":        findings_data,
         "summary":         scan.summary or "",
@@ -59,4 +60,5 @@ async def generate_reports_for_scan(
     paths["html"] = str(gen.html())
     paths["json"] = str(gen.json_report())
     paths["md"]   = str(gen.markdown())
+    paths["bb"]   = str(gen.bugbounty_markdown())
     return paths

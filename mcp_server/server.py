@@ -125,7 +125,9 @@ async def save_finding(
     title: str,
     severity: str,
     description: str,
+    steps_to_reproduce: list[str],
     evidence: str,
+    impact: str,
     remediation: str,
     cwe: str | None = None,
     cvss_score: float | None = None,
@@ -136,15 +138,17 @@ async def save_finding(
     Save a confirmed security finding to the database.
 
     Args:
-        title:       Short finding title (e.g. "Reflected XSS in search param")
-        severity:    critical | high | medium | low | info
-        description: Detailed description of the vulnerability
-        evidence:    Proof of exploitability / reproduction steps
-        remediation: How to fix the issue
-        cwe:         CWE identifier (e.g. "CWE-79")
-        cvss_score:  CVSS 3.1 base score 0.0–10.0
-        references:  List of URLs / CVEs / OWASP references
-        session_id:  Current assessment session ID (from create_session)
+        title:               Short title (e.g. "Reflected XSS in search param")
+        severity:            critical | high | medium | low | info
+        description:         Technical description of the vulnerability
+        steps_to_reproduce:  Numbered PoC steps, e.g. ["Open /search", "Enter payload <script>...", "Observe alert"]
+        evidence:            Raw proof — HTTP request/response, payload output, screenshot path
+        impact:              What an attacker can achieve (used in bug bounty submissions)
+        remediation:         How to fix the issue
+        cwe:                 CWE identifier (e.g. "CWE-79")
+        cvss_score:          CVSS 3.1 base score 0.0–10.0
+        references:          OWASP links, CVEs, CWE URLs
+        session_id:          Session ID from create_session
 
     Returns:
         dict with finding_id and status
@@ -154,15 +158,17 @@ async def save_finding(
             resp = await client.post(
                 f"{BACKEND_URL}/api/findings",
                 json={
-                    "title": title,
-                    "severity": severity.lower(),
-                    "description": description,
-                    "evidence": evidence,
-                    "remediation": remediation,
-                    "cwe": cwe,
-                    "cvss_score": cvss_score,
-                    "references": references or [],
-                    "session_id": session_id,
+                    "title":              title,
+                    "severity":           severity.lower(),
+                    "description":        description,
+                    "steps_to_reproduce": steps_to_reproduce,
+                    "evidence":           evidence,
+                    "impact":             impact,
+                    "remediation":        remediation,
+                    "cwe":                cwe,
+                    "cvss_score":         cvss_score,
+                    "references":         references or [],
+                    "session_id":         session_id,
                 },
             )
             return resp.json()

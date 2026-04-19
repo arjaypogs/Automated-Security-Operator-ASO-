@@ -21,7 +21,9 @@ class FindingCreate(BaseModel):
     title: str
     severity: str
     description: str = ""
+    steps_to_reproduce: list[str] = []
     evidence: str = ""
+    impact: str = ""
     remediation: str = ""
     cwe: str | None = None
     cvss_score: float | None = None
@@ -40,7 +42,9 @@ async def create_finding(body: FindingCreate, db: AsyncSession = Depends(get_db)
         cwe=body.cwe,
         cvss_score=body.cvss_score,
         description=body.description,
+        steps_to_reproduce=json.dumps(body.steps_to_reproduce),
         evidence=body.evidence,
+        impact=body.impact,
         remediation=body.remediation,
         references=json.dumps(body.references),
     )
@@ -71,7 +75,9 @@ def _to_out(f: Finding) -> FindingOut:
         cwe=f.cwe,
         cvss_score=f.cvss_score,
         description=f.description,
+        steps_to_reproduce=f.steps_list,
         evidence=f.evidence,
+        impact=f.impact,
         remediation=f.remediation,
         references=f.references_list,
     )

@@ -26,6 +26,13 @@ async def download_md(scan_id: str):
     return FileResponse(path, media_type="text/markdown", filename=f"aso_{scan_id}.md")
 
 
+@router.get("/{scan_id}/bb")
+async def download_bugbounty(scan_id: str):
+    """Download the bug bounty report pack (HackerOne / Bugcrowd / Intigriti format)."""
+    path = _find_report(scan_id, "bb.md")
+    return FileResponse(path, media_type="text/markdown", filename=f"bugbounty_{scan_id}.md")
+
+
 @router.get("/{scan_id}/preview", response_class=HTMLResponse)
 async def preview_html(scan_id: str):
     path = _find_report(scan_id, "html")
@@ -38,5 +45,5 @@ def _find_report(scan_id: str, ext: str) -> Path:
         raise HTTPException(404, "Report not found")
     files = sorted(base.glob(f"*.{ext}"))
     if not files:
-        raise HTTPException(404, f"No .{ext} report for this scan")
+        raise HTTPException(404, f"No {ext} report for this scan")
     return files[-1]

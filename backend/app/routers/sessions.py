@@ -103,6 +103,7 @@ async def finish_session(
     scan.report_html_path = paths.get("html")
     scan.report_json_path = paths.get("json")
     scan.report_md_path   = paths.get("md")
+    scan.report_bb_path   = paths.get("bb")
     await db.commit()
 
     return {

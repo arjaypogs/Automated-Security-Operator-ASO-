@@ -28,6 +28,7 @@ class Scan(Base):
     report_html_path: Mapped[str | None] = mapped_column(String, nullable=True)
     report_json_path: Mapped[str | None] = mapped_column(String, nullable=True)
     report_md_path: Mapped[str | None] = mapped_column(String, nullable=True)
+    report_bb_path: Mapped[str | None] = mapped_column(String, nullable=True)
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     findings: Mapped[list[Finding]] = relationship("Finding", back_populates="scan",
@@ -44,7 +45,9 @@ class Finding(Base):
     cwe: Mapped[str | None] = mapped_column(String, nullable=True)
     cvss_score: Mapped[float | None] = mapped_column(Float, nullable=True)
     description: Mapped[str] = mapped_column(Text, default="")
+    steps_to_reproduce: Mapped[str] = mapped_column(Text, default="[]")  # JSON list
     evidence: Mapped[str] = mapped_column(Text, default="")
+    impact: Mapped[str] = mapped_column(Text, default="")
     remediation: Mapped[str] = mapped_column(Text, default="")
     references: Mapped[str] = mapped_column(Text, default="[]")  # JSON list
 
@@ -54,5 +57,12 @@ class Finding(Base):
     def references_list(self) -> list[str]:
         try:
             return json.loads(self.references)
+        except Exception:
+            return []
+
+    @property
+    def steps_list(self) -> list[str]:
+        try:
+            return json.loads(self.steps_to_reproduce)
         except Exception:
             return []

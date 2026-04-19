@@ -22,7 +22,9 @@ class FindingOut(BaseModel):
     cwe: str | None
     cvss_score: float | None
     description: str
+    steps_to_reproduce: list[str] = []
     evidence: str
+    impact: str = ""
     remediation: str
     references: list[str]
 
@@ -43,6 +45,7 @@ class ScanOut(BaseModel):
     report_html_path: str | None
     report_json_path: str | None
     report_md_path: str | None
+    report_bb_path: str | None
     findings: list[FindingOut] = []
 
     model_config = {"from_attributes": True}
